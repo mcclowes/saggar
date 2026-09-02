@@ -4,7 +4,17 @@ Saggar is a native macOS terminal manager built around one question: *which sess
 
 It keeps projects, shells, and coding agents in one place, then brings forward the session that needs your attention.
 
-[Visit the website](https://saggar.marginalutility.dev) or read the [documentation](https://saggar.marginalutility.dev/docs).
+[Website](https://saggar.marginalutility.dev) · [Documentation](https://saggar.marginalutility.dev/docs) · [Updates](https://saggar.marginalutility.dev/docs/changelog) · [Install](#install)
+
+![Saggar organizing sessions across several projects](https://saggar.marginalutility.dev/screenshots/window.png)
+
+## What Saggar does
+
+- Runs shells, dev servers, tests, and coding agents across several projects
+- Tracks which sessions are working, waiting, finished, or failed
+- Collects sessions that need a decision into one ordered queue
+- Works with Codex, Claude Code, Antigravity, Pi, and OpenCode
+- Lets you inspect and answer sessions remotely with the Saggar Companion
 
 ## Install
 
@@ -13,6 +23,8 @@ Saggar requires macOS 26 or newer on Apple silicon.
 ```bash
 brew install --cask mcclowes/saggar/saggar
 ```
+
+You can also [download the latest release directly](https://github.com/mcclowes/homebrew-saggar/releases/latest/download/Saggar.dmg). No account is needed to use the Mac app.
 
 ## Help shape Saggar
 
@@ -26,4 +38,4 @@ Before reporting a problem, check the [troubleshooting guide](https://saggar.mar
 
 ## About this repository
 
-Saggar is proprietary software. Its application source is private. This repository hosts the public issue tracker, discussions, and, in time, the source for the website and product documentation.
+Saggar is proprietary software, and its application source is private. This repository hosts the public issue tracker and discussions. It will also host the website and product documentation once those sources move here.
