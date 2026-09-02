@@ -1,0 +1,68 @@
+name: Bug report
+description: Report reproducible behavior that appears to be wrong
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Search existing issues first, and remove secrets, terminal contents, and private project details before posting.
+  - type: input
+    id: saggar-version
+    attributes:
+      label: Saggar version
+      placeholder: For example, 1.2.3
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: For example, macOS 26.1
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Projects and sessions
+        - Terminal
+        - Agents and providers
+        - Remote control
+        - Companion
+        - Settings and appearance
+        - Installation and updates
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Select …
+        3. Observe …
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting material
+      description: Add screenshots or redacted diagnostics if they help. You can export diagnostics from Saggar's settings.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed credentials, tokens, terminal contents, and private project details.
+          required: true

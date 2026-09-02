@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest a concrete improvement to Saggar
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Open-ended ideas belong in Discussions. Use this form when the problem and desired behavior are reasonably clear.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the situation or friction, rather than only the proposed feature.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What would you like Saggar to do?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you do today?
+      description: Describe workarounds or alternatives, if any.
