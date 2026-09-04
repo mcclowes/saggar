@@ -1,0 +1,399 @@
+<title>Saggar Scheduled Tasks</title>
+<style>
+  :root {
+    --bg: #f5f7f5;
+    --surface: #ffffff;
+    --surface-2: #eef2ef;
+    --line: #d8e0da;
+    --line-strong: #c3cdc6;
+    --text: #17211b;
+    --muted: #5a6a5f;
+    --faint: #8b9a90;
+    --accent: #2f6fdb;
+    --accent-ink: #ffffff;
+    --ok: #1f8a3b;
+    --ok-bg: #e4f4e8;
+    --bad: #c8322b;
+    --bad-bg: #fbe7e5;
+    --warn: #b0730f;
+    --warn-bg: #fbf0da;
+    --idle: #8b9a90;
+    --idle-bg: #eef2ef;
+    --focus: #2f6fdb;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1712; --surface: #131e17; --surface-2: #182520; --line: #223129; --line-strong: #2f4237;
+      --text: #e4ece6; --muted: #93a699; --faint: #66796d;
+      --accent: #5b93f0; --accent-ink: #0b1220;
+      --ok: #4ec46a; --ok-bg: #163322; --bad: #f2655c; --bad-bg: #3a1c1a; --warn: #e0a83a; --warn-bg: #33270f;
+      --idle: #7f9186; --idle-bg: #1a2620; --focus: #5b93f0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1712; --surface: #131e17; --surface-2: #182520; --line: #223129; --line-strong: #2f4237;
+    --text: #e4ece6; --muted: #93a699; --faint: #66796d;
+    --accent: #5b93f0; --accent-ink: #0b1220;
+    --ok: #4ec46a; --ok-bg: #163322; --bad: #f2655c; --bad-bg: #3a1c1a; --warn: #e0a83a; --warn-bg: #33270f;
+    --idle: #7f9186; --idle-bg: #1a2620; --focus: #5b93f0;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); margin: 0; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+  code { font-family: var(--mono); font-size: 12.5px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- app chrome (context only) ---------- */
+  .chrome { border-bottom: 1px solid var(--line); background: var(--surface); }
+  .chrome-top { display: flex; align-items: center; gap: 14px; padding: 12px 20px 6px; }
+  .brand { font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+  .chrome-top code { color: var(--muted); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 12.5px; color: var(--muted); }
+  .chip code { color: inherit; }
+  .tabs { display: flex; gap: 4px; padding: 0 12px 8px; }
+  .tab { padding: 6px 12px; border-radius: 8px; color: var(--muted); font-weight: 500; display: inline-flex; gap: 6px; align-items: center; }
+  .tab .count { color: var(--faint); font-weight: 400; }
+  .tab.is-active { background: var(--surface-2); color: var(--text); }
+  .tab.is-active .count { color: var(--accent); }
+
+  /* ---------- page ---------- */
+  .page { max-width: 1120px; margin: 0 auto; padding: 28px 24px 64px; }
+  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+  .head h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .head p { margin: 0; color: var(--muted); }
+  .head p strong { color: var(--text); font-weight: 500; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 6px 12px; font-weight: 500; background: var(--surface); }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.small { padding: 3px 9px; font-size: 12.5px; border-radius: 6px; }
+
+  .notice { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-left: 3px solid var(--warn); background: var(--surface); border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; color: var(--muted); }
+  .notice strong { color: var(--text); font-weight: 500; }
+  .notice svg { flex: none; margin-top: 2px; color: var(--warn); }
+
+  /* filter bar: counts by outcome, like Actions' status filters */
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+  .filters { display: flex; gap: 4px; flex-wrap: wrap; }
+  .filter { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 8px; color: var(--muted); font-weight: 500; }
+  .filter:hover { background: var(--surface-2); }
+  .filter.is-active { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .filter .count { color: var(--faint); font-weight: 400; }
+  .filter .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .sort { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+  .sort select { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 5px 8px; }
+
+  /* ---------- the list ---------- */
+  .list { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+  .cols, .row-main { display: grid; grid-template-columns: 28px minmax(0, 1fr) 200px 130px 92px; gap: 0 14px; align-items: center; }
+  .cols { padding: 8px 16px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); font-weight: 600; }
+  .cols .tz { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .group { padding: 7px 16px; background: var(--surface-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12.5px; font-weight: 500; display: flex; gap: 8px; align-items: baseline; }
+  .group .count { color: var(--faint); font-weight: 400; }
+  .group:first-of-type { border-top: 0; }
+  .row { border-top: 1px solid var(--line); }
+  .row:first-child, .group + .row { border-top: 0; }
+  .row-main { padding: 11px 16px; min-height: 58px; }
+  .row-main:hover { background: color-mix(in srgb, var(--surface-2) 55%, var(--surface)); }
+  .row.is-open .row-main { background: var(--surface-2); }
+
+  .status { width: 20px; height: 20px; display: inline-grid; place-items: center; border-radius: 50%; }
+  .status svg { width: 18px; height: 18px; }
+  .status.ok { color: var(--ok); }
+  .status.bad { color: var(--bad); }
+  .status.warn { color: var(--warn); }
+  .status.idle { color: var(--idle); }
+  .status.running { color: var(--warn); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status.running svg { animation: spin 1.4s linear infinite; }
+  @media (prefers-reduced-motion: reduce) { .status.running svg { animation: none; } }
+
+  .name { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+  .name button { font-weight: inherit; text-align: left; }
+  .name button:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+  .badge { font-size: 11px; font-weight: 600; letter-spacing: 0.03em; padding: 1px 7px; border-radius: 999px; border: 1px solid transparent; }
+  .badge.paused { color: var(--warn); background: var(--warn-bg); }
+  .badge.invalid { color: var(--bad); background: var(--bad-bg); }
+  .meta { display: flex; align-items: baseline; gap: 10px; color: var(--muted); margin-top: 2px; min-width: 0; font-size: 13px; }
+  .meta .when { flex: none; }
+  .meta .sep { color: var(--faint); flex: none; }
+  .meta code { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .meta code[title]:hover { color: var(--text); }
+
+  .last { min-width: 0; font-size: 13px; }
+  .last .outcome { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+  .last .outcome.bad { color: var(--bad); }
+  .last .outcome.ok { color: var(--text); }
+  .last .outcome.idle { color: var(--faint); font-weight: 400; }
+  .last .detail { color: var(--muted); display: flex; gap: 6px; align-items: baseline; }
+  .last .detail .late { color: var(--warn); }
+  .next { font-size: 13px; }
+  .next .rel { font-weight: 500; }
+  .next .abs { color: var(--muted); }
+  .next.soon .rel { color: var(--accent); }
+
+  .actions { display: flex; justify-content: flex-end; gap: 4px; }
+  .actions .run { opacity: 0; transition: opacity .12s; }
+  .row-main:hover .actions .run, .row-main:focus-within .actions .run { opacity: 1; }
+  .icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 6px; color: var(--muted); }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+  .icon-btn svg { width: 16px; height: 16px; }
+  .row.is-open .chev svg { transform: rotate(180deg); }
+
+  /* expanded run detail, the "jobs" panel */
+  .detail-panel { display: none; border-top: 1px solid var(--line); background: var(--bg); padding: 14px 16px 16px 58px; }
+  .row.is-open .detail-panel { display: block; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .facts b { color: var(--text); font-weight: 500; }
+  .facts .bad { color: var(--bad); }
+  .log { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+  .log-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .log pre { margin: 0; padding: 10px 12px; font: 12px/1.55 var(--mono); color: var(--muted); overflow-x: auto; }
+  .log pre .err { color: var(--bad); }
+  .log pre .dim { color: var(--faint); }
+  .runs { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
+  .runs li { display: grid; grid-template-columns: 20px 1fr 110px 90px; gap: 10px; align-items: center; padding: 5px 0; font-size: 13px; color: var(--muted); border-top: 1px dashed var(--line); }
+  .runs li:first-child { border-top: 0; }
+  .runs .status { width: 16px; height: 16px; } .runs .status svg { width: 14px; height: 14px; }
+  .runs li .who { color: var(--text); }
+  .runs-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); font-weight: 600; margin-top: 16px; }
+
+  .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+  .foot { margin-top: 14px; color: var(--faint); font-size: 12.5px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  @media (max-width: 860px) {
+    .cols { display: none; }
+    .row-main { grid-template-columns: 28px minmax(0,1fr) 92px; grid-template-areas: "s main act" ". last next"; row-gap: 6px; }
+    .row-main > .status { grid-area: s; } .row-main > .main { grid-area: main; } .row-main > .last { grid-area: last; }
+    .row-main > .next { grid-area: next; } .row-main > .actions { grid-area: act; }
+    .detail-panel { padding-left: 16px; }
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-ok" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M4.8 8.3l2.1 2.1 4.3-4.6" fill="none" stroke="var(--surface)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-bad" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" fill="none" stroke="var(--surface)" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-idle" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.4 2.4"/></symbol>
+  <symbol id="i-paused" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.3 5.5v5M9.7 5.5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-run" viewBox="0 0 16 16"><path d="M5 3.5v9l7-4.5z" fill="currentColor"/></symbol>
+  <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="12.5" cy="8" r="1.4" fill="currentColor"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2.2L14.6 13.5H1.4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.5v3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".9" fill="currentColor"/></symbol>
+</svg>
+
+<div class="chrome">
+  <div class="chrome-top">
+    <span class="brand">saggar</span>
+    <code>~/Development/kiln/saggar-product</code>
+    <span class="chip"><code>feat/hooks</code></span>
+    <span class="chip">0 files</span>
+    <span class="chip">↑ 0 · ↓ 63</span>
+  </div>
+  <div class="tabs">
+    <span class="tab">Readme</span><span class="tab">Docs</span><span class="tab">Commands <span class="count">5</span></span>
+    <span class="tab is-active">Scheduled <span class="count">7</span></span>
+    <span class="tab">Hooks</span><span class="tab">Agent context</span><span class="tab">History <span class="count">10</span></span><span class="tab">Settings</span>
+  </div>
+</div>
+
+<main class="page">
+  <div class="head">
+    <div>
+      <h1>Scheduled tasks</h1>
+      <p id="headline"></p>
+    </div>
+    <button class="btn primary">＋ New task</button>
+  </div>
+
+  <div class="notice" id="notice">
+    <svg width="16" height="16"><use href="#i-warn"/></svg>
+    <div><strong>Nightly smoke tests failed</strong> on its last run, 10 hours ago. Its next scheduled run is tonight at 02:00. <button class="btn small" style="margin-left:8px" onclick="openRow('smoke')">See what failed</button></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="filters" id="filters"></div>
+    <label class="sort">Sort
+      <select id="sort">
+        <option value="next">Next run</option>
+        <option value="last">Last run</option>
+        <option value="name">Name</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="foot">
+    <span>Times in GMT (Europe/London). Hover a time for the exact date.</span>
+    <span>Tasks are stored in this project's <code>.saggar/</code> folder, next to commands and hooks.</span>
+  </div>
+</main>
+
+<script>
+  // Fixed "now" so the mock matches the screenshot: Fri 4 Sep 2026, 16:00 GMT.
+  const NOW = Date.UTC(2026, 8, 4, 16, 0);
+  const T = (y,m,d,h,mi) => Date.UTC(y, m-1, d, h, mi);
+
+  // Example data drawn from the current screen. Durations, exit codes and log lines are illustrative.
+  const tasks = [
+    { id:'smoke', name:'Nightly smoke tests', schedule:'Daily at 02:00', cron:'0 2 * * *',
+      cmd:'npm run lint && npm test && npm run build && npm run companion:typecheck && npm run companion:test',
+      next:T(2026,9,5,2,0), last:{ at:T(2026,9,4,6,15), outcome:'bad', dur:'4m 12s', trigger:'schedule', late:'4 h', exit:1 },
+      history:[
+        { at:T(2026,9,4,6,15), outcome:'bad', dur:'4m 12s', trigger:'schedule, 4 h late' },
+        { at:T(2026,9,3,2,0),  outcome:'ok',  dur:'3m 58s', trigger:'schedule' },
+        { at:T(2026,9,2,2,0),  outcome:'ok',  dur:'4m 01s', trigger:'schedule' },
+        { at:T(2026,9,1,9,20), outcome:'ok',  dur:'4m 05s', trigger:'manual' },
+      ],
+      log:[
+        ['dim','> saggar-product@0.14.2 build'],
+        ['dim','> vite build'],
+        ['','vite v6.0.3 building for production...'],
+        ['','transforming (412) src/companion/Session.tsx'],
+        ['err','src/companion/Session.tsx(88,14): error TS2339: Property \'lastSeenAt\' does not exist on type \'SessionSummary\'.'],
+        ['err','ERROR: build failed with 1 error'],
+        ['dim','npm ERR! Lifecycle script `build` failed with error code 1'],
+      ] },
+    { id:'deps', name:'Companion deps check', schedule:'Mondays at 09:00', cron:'0 9 * * 1',
+      cmd:'npm outdated --prefix companion; npm audit --prefix companion',
+      next:T(2026,9,7,9,0), last:{ at:T(2026,8,31,22,27), outcome:'ok', dur:'38s', trigger:'schedule', late:'13 h' },
+      history:[ { at:T(2026,8,31,22,27), outcome:'ok', dur:'38s', trigger:'schedule, 13 h late' }, { at:T(2026,8,24,9,0), outcome:'ok', dur:'41s', trigger:'schedule' } ] },
+    { id:'docs', name:'check docs', schedule:'Mondays at 09:00', cron:'0 9 * * 1',
+      cmd:'claude -- "/rtf"',
+      next:T(2026,9,7,9,0), last:{ at:T(2026,8,31,22,27), outcome:'ok', dur:'2m 51s', trigger:'schedule', late:'13 h' },
+      history:[ { at:T(2026,8,31,22,27), outcome:'ok', dur:'2m 51s', trigger:'schedule, 13 h late' } ] },
+    { id:'issues', name:'issue review', schedule:'Mondays at 09:00', cron:'0 9 * * 1',
+      cmd:'claude -- "review open issues and close any that are done/stale"',
+      next:T(2026,9,7,9,0), last:{ at:T(2026,8,31,22,27), outcome:'ok', dur:'3m 20s', trigger:'schedule', late:'13 h' },
+      history:[ { at:T(2026,8,31,22,27), outcome:'ok', dur:'3m 20s', trigger:'schedule, 13 h late' } ] },
+    { id:'shots', name:'Refresh product screenshots', schedule:'Mondays at 09:00', cron:'0 9 * * 1',
+      cmd:'npm run screenshots',
+      next:T(2026,9,7,9,0), last:{ at:T(2026,9,1,9,14), outcome:'ok', dur:'1m 05s', trigger:'manual' },
+      history:[ { at:T(2026,9,1,9,14), outcome:'ok', dur:'1m 05s', trigger:'manual' }, { at:T(2026,8,31,22,27), outcome:'ok', dur:'1m 09s', trigger:'schedule, 13 h late' } ] },
+    { id:'audit-claude', name:'Audit Claude Code integration', schedule:'Mondays at 09:00', cron:'0 9 * * 1',
+      cmd:"claude -- 'Check the latest official Claude Code documentation for hooks, settings and slash commands against what Saggar detects: status signals, prompt detection and expected file paths. Do not modify files.'",
+      next:T(2026,9,7,9,0), last:null, history:[] },
+    { id:'audit-codex', name:'Audit Codex integration', schedule:'Mondays at 10:00', cron:'0 10 * * 1',
+      cmd:"codex 'Check the latest official OpenAI Codex CLI documentation against what Saggar detects: status signals, prompt detection and expected file paths. Do not modify files.'",
+      next:T(2026,9,7,10,0), last:null, history:[] },
+  ];
+
+  const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const pad = n => String(n).padStart(2,'0');
+  function abs(t){ const d=new Date(t); return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} GMT`; }
+  function short(t){ const d=new Date(t); return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; }
+  function ago(t){
+    const m = Math.round((NOW - t)/60000);
+    if (m < 60) return `${m} min ago`;
+    const h = Math.round(m/60); if (h < 24) return `${h} h ago`;
+    const d = Math.round(h/24); return d === 1 ? 'yesterday' : `${d} days ago`;
+  }
+  function until(t){
+    const m = Math.round((t - NOW)/60000);
+    if (m < 60) return `in ${m} min`;
+    const h = Math.round(m/60); if (h < 36) return `in ${h} h`;
+    const d = Math.round(h/24); return `in ${d} days`;
+  }
+  function dayLabel(t){
+    const d = new Date(t), n = new Date(NOW);
+    const diff = Math.round((Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()) - Date.UTC(n.getUTCFullYear(),n.getUTCMonth(),n.getUTCDate()))/864e5);
+    const day = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+    return `${day}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+  }
+  const outcomeOf = t => t.state === 'paused' ? 'paused' : t.state === 'invalid' ? 'invalid' : !t.last ? 'idle' : t.last.outcome;
+  const iconFor = o => ({ok:'i-ok', bad:'i-bad', idle:'i-idle', paused:'i-paused', invalid:'i-bad'})[o];
+  const classFor = o => ({ok:'ok', bad:'bad', idle:'idle', paused:'warn', invalid:'bad'})[o];
+  const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  let filter = 'all', sort = 'next';
+  const open = new Set(['smoke']);
+
+  function renderFilters(){
+    const counts = { all: tasks.length, bad:0, ok:0, idle:0, paused:0, invalid:0 };
+    tasks.forEach(t => counts[outcomeOf(t)]++);
+    const defs = [
+      ['all','All',null], ['bad','Failing','var(--bad)'], ['ok','Passing','var(--ok)'], ['idle','Not run yet','var(--idle)'],
+      ['paused','Paused','var(--warn)'], ['invalid','Invalid','var(--bad)'],
+    ].filter(([k]) => k === 'all' || counts[k] > 0);
+    document.getElementById('filters').innerHTML = defs.map(([k,label,color]) =>
+      `<button class="filter ${filter===k?'is-active':''}" data-filter="${k}" aria-pressed="${filter===k}">${color?`<span class="dot" style="background:${color}"></span>`:''}${label} <span class="count num">${counts[k]}</span></button>`
+    ).join('');
+    const nextTask = [...tasks].sort((a,b)=>a.next-b.next)[0];
+    document.getElementById('headline').innerHTML =
+      `${tasks.length} tasks · next run ${until(nextTask.next)} · ${counts.bad ? `<strong style="color:var(--bad)">${counts.bad} failing</strong>` : 'all passing'}`;
+    document.getElementById('notice').hidden = counts.bad === 0;
+  }
+
+  function row(t){
+    const o = outcomeOf(t);
+    const isOpen = open.has(t.id);
+    const soon = t.next - NOW < 12*3600e3;
+    const last = !t.last
+      ? `<div class="outcome idle">Not run yet</div>`
+      : `<div class="outcome ${t.last.outcome}"><span>${t.last.outcome==='bad'?'Failed':'Passed'}</span><span class="num" style="font-weight:400;color:var(--muted)" title="${abs(t.last.at)}">${ago(t.last.at)}</span></div>
+         <div class="detail"><span class="num">${t.last.dur}</span><span class="sep">·</span><span>${t.last.trigger}</span>${t.last.late?`<span class="late" title="Saggar was not open at the scheduled time">${t.last.late} late</span>`:''}</div>`;
+    return `<div class="row ${isOpen?'is-open':''}" data-id="${t.id}">
+      <div class="row-main">
+        <span class="status ${classFor(o)}" title="${o==='bad'?'Last run failed':o==='ok'?'Last run passed':o==='idle'?'Has not run yet':o}"><svg><use href="#${iconFor(o)}"/></svg></span>
+        <div class="main" style="min-width:0">
+          <div class="name"><button onclick="toggle('${t.id}')" aria-expanded="${isOpen}">${esc(t.name)}</button>
+            ${t.state==='paused'?'<span class="badge paused">Paused</span>':''}${t.state==='invalid'?'<span class="badge invalid">Invalid schedule</span>':''}</div>
+          <div class="meta"><span class="when" title="${t.cron}">${t.schedule}</span><span class="sep">·</span><code title="${esc(t.cmd)}">${esc(t.cmd)}</code></div>
+        </div>
+        <div class="last">${last}</div>
+        <div class="next ${soon?'soon':''}"><div class="rel">${until(t.next)}</div><div class="abs num" title="${abs(t.next)}">${short(t.next)}</div></div>
+        <div class="actions">
+          <button class="icon-btn run" title="Run now"><svg><use href="#i-run"/></svg></button>
+          <button class="icon-btn" title="More: edit, pause, open log, delete"><svg><use href="#i-more"/></svg></button>
+          <button class="icon-btn chev" title="${isOpen?'Hide runs':'Show runs'}" onclick="toggle('${t.id}')" aria-expanded="${isOpen}"><svg><use href="#i-chev"/></svg></button>
+        </div>
+      </div>
+      <div class="detail-panel">${detail(t)}</div>
+    </div>`;
+  }
+
+  function detail(t){
+    if (!t.last) return `<div class="facts"><span>This task has not run yet. First run <b>${dayLabel(t.next)}</b>, as long as Saggar is open.</span><span><button class="btn small">Run now</button></span></div>`;
+    const l = t.last;
+    let html = `<div class="facts">
+      <span>Last run <b>${l.outcome==='bad'?`<span class="bad">failed</span>`:'passed'}</b> · <span title="${abs(l.at)}">${abs(l.at)}</span></span>
+      <span>Took <b class="num">${l.dur}</b></span>
+      ${l.exit!=null?`<span>Exit code <b class="num">${l.exit}</b></span>`:''}
+      <span>Started by <b>${l.trigger}</b>${l.late?` · <span style="color:var(--warn)">ran ${l.late} late, Saggar was closed at ${t.schedule.replace(/^.*at /,'')}</span>`:''}</span>
+      <span style="margin-left:auto;display:flex;gap:6px"><button class="btn small">Re-run</button><button class="btn small">Open log</button></span>
+    </div>`;
+    if (t.log) html += `<div class="log"><div class="log-head"><span>Last lines of output</span><span class="num">63 lines · show all</span></div><pre>${t.log.map(([c,s])=>`<span class="${c}">${esc(s)}</span>`).join('\n')}</pre></div>`;
+    if (t.history.length > 1) html += `<div class="runs-title">Recent runs</div><ul class="runs">${t.history.map(h =>
+      `<li><span class="status ${classFor(h.outcome)}"><svg><use href="#${iconFor(h.outcome)}"/></svg></span><span><span class="who">${h.outcome==='bad'?'Failed':'Passed'}</span> · ${h.trigger}</span><span class="num" title="${abs(h.at)}">${ago(h.at)}</span><span class="num">${h.dur}</span></li>`).join('')}</ul>`;
+    return html;
+  }
+
+  function render(){
+    renderFilters();
+    let list = tasks.filter(t => filter === 'all' || outcomeOf(t) === filter);
+    const cmp = { next:(a,b)=>a.next-b.next || a.name.localeCompare(b.name), last:(a,b)=>((b.last?.at)||0)-((a.last?.at)||0), name:(a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:'base'}) }[sort];
+    list = [...list].sort(cmp);
+    let html = `<div class="cols"><span></span><span>Task</span><span>Last run</span><span>Next run <span class="tz">(GMT)</span></span><span></span></div>`;
+    if (!list.length) html += `<div class="empty">Nothing matches this filter.</div>`;
+    let lastGroup = null;
+    list.forEach(t => {
+      if (sort === 'next') {
+        const g = dayLabel(t.next);
+        if (g !== lastGroup) { const n = list.filter(x => dayLabel(x.next) === g).length; html += `<div class="group">${g} <span class="count">${n} task${n>1?'s':''}${n>1?' start together':''}</span></div>`; lastGroup = g; }
+      }
+      html += row(t);
+    });
+    document.getElementById('list').innerHTML = html;
+  }
+
+  function toggle(id){ open.has(id) ? open.delete(id) : open.add(id); render(); }
+  function openRow(id){ open.add(id); render(); document.querySelector(`[data-id="${id}"]`)?.scrollIntoView({block:'nearest', behavior:'smooth'}); }
+  document.getElementById('filters').addEventListener('click', e => { const b = e.target.closest('[data-filter]'); if (b) { filter = b.dataset.filter; render(); } });
+  document.getElementById('sort').addEventListener('change', e => { sort = e.target.value; render(); });
+  render();
+</script>
