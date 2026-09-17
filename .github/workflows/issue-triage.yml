@@ -1,0 +1,62 @@
+name: Issue triage
+
+# Hands each new issue to Saggar. The relay forwards the `saggar` label, then
+# the repository instructions route clear work to the private implementation repos.
+# Set the repository variable SAGGAR_AUTO_TRIAGE=false to pause.
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  ensure-label:
+    name: Ensure the Saggar label exists
+    if: vars.SAGGAR_AUTO_TRIAGE != 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Create or update the label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh label create saggar --repo "$GITHUB_REPOSITORY" --color 6f42c1
+          --description "Send to Saggar for automated triage" --force
+
+  label-new-issue:
+    name: Label the new issue for Saggar
+    if: >-
+      github.event_name == 'issues'
+      && github.event.issue.user.type != 'Bot'
+      && !github.event.issue.assignee
+      && !contains(github.event.issue.labels.*.name, 'saggar')
+      && !contains(github.event.issue.labels.*.name, 'tracking')
+    needs: ensure-label
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Add the Saggar label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label saggar
+
+  label-open-issues:
+    name: Send existing open issues to Saggar
+    if: github.event_name == 'workflow_dispatch'
+    needs: ensure-label
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Add the Saggar label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,assignees,labels \
+            --jq '.[] | select((.assignees | length) == 0) | select([.labels[].name] | contains(["saggar"]) | not) | .number' |
+          while read -r issue; do
+            gh issue edit "$issue" --repo "$GITHUB_REPOSITORY" --add-label saggar
+          done
