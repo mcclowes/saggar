@@ -1,0 +1,14 @@
+{
+  "name": "saggar-public",
+  "private": true,
+  "description": "Task entry points for Saggar's public repository. Node is only the runner; nothing here needs installing.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test scripts/saggar-link.test.mjs",
+    "link": "node scripts/saggar-link.mjs",
+    "links:check": "node scripts/saggar-link.mjs check resources"
+  }
+}
