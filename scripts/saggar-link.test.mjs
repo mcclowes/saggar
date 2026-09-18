@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildLink, extractLinks, validateLink } from "./saggar-link.mjs";
+import { buildLink, extractLinks, hiddenPrompt, validateLink } from "./saggar-link.mjs";
 
 const ORIGIN = "https://saggar.marginalutility.dev/open/v1";
 
@@ -82,4 +82,11 @@ test("extracts links from Markdown with their line numbers, skipping templates",
     { line: 2, link: `${ORIGIN}/session?name=lazygit&command=lazygit` },
     { line: 3, link: `${ORIGIN}/navigate?pane=cli` },
   ]);
+});
+
+test("flags a prompt link whose prompt isn't shown on the page", () => {
+  const link = buildLink("prompt", { prompt: "Describe this project.", provider: "claude", model: "opus" });
+  assert.equal(hiddenPrompt(link, "```text\nDescribe this project.\n```"), false);
+  assert.equal(hiddenPrompt(link, "```text\nDescribe this repo.\n```"), true);
+  assert.equal(hiddenPrompt(buildLink("navigate", {}), ""), false);
 });

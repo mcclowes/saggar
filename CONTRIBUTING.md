@@ -17,6 +17,10 @@ Remove terminal contents, credentials, tokens, private repository names, and oth
 
 Use Discussions for early or open-ended ideas. Open a feature request when the desired behavior is concrete enough to evaluate.
 
+## Resources
+
+The [resources list](resources/README.md) collects skills, prompts, terminal tools, commands, schedules, and hooks that work well with Saggar. Pull requests are welcome. Read its [contributing guide](resources/CONTRIBUTING.md) first.
+
 ## Pull requests
 
-Saggar's application source isn't hosted here, so this repository doesn't accept application-code contributions. Pull requests for public website and documentation content will be welcome once those sources move here.
+Saggar's application source isn't hosted here, so this repository doesn't accept application-code contributions. Apart from the resources list, pull requests for public website and documentation content will be welcome once those sources move here.

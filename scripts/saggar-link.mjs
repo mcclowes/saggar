@@ -114,6 +114,14 @@ export function describeLink(link) {
   return `${action} ${parameters.join(" ")}`.trim();
 }
 
+// A prompt link must run text the reader can see on the page, not something else.
+export function hiddenPrompt(link, markdown) {
+  const url = new URL(link);
+  if (!url.pathname.endsWith("/prompt")) return false;
+  const prompt = decodeURIComponent(url.search.match(/[?&]prompt=([^&]*)/)?.[1] ?? "");
+  return !markdown.includes(prompt);
+}
+
 function markdownFiles(path) {
   if (statSync(path).isFile()) return path.endsWith(".md") ? [path] : [];
   return readdirSync(path).flatMap((entry) => markdownFiles(join(path, entry)));
@@ -123,9 +131,13 @@ function check(paths) {
   let failures = 0;
   let count = 0;
   for (const file of paths.flatMap(markdownFiles)) {
-    for (const { line, link } of extractLinks(readFileSync(file, "utf8"))) {
+    const markdown = readFileSync(file, "utf8");
+    for (const { line, link } of extractLinks(markdown)) {
       count += 1;
       const errors = validateLink(link);
+      if (errors.length === 0 && hiddenPrompt(link, markdown)) {
+        errors.push("runs a prompt that isn't shown in the file; put the exact prompt in a text block beside it");
+      }
       if (errors.length === 0) {
         console.log(`ok    ${file}:${line}  ${describeLink(link)}`);
       } else {

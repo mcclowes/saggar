@@ -4,7 +4,7 @@ Saggar is a native macOS command center for developers running multiple terminal
 
 It is built around one question: *which session needs me right now?* Saggar keeps projects, shells, and agents in one place, then brings forward the sessions waiting for your attention.
 
-[Install](#install) · [Watch the intro](https://youtu.be/3Dt_zLCfJ30) · [Documentation](https://saggar.marginalutility.dev/docs) · [Updates](https://saggar.marginalutility.dev/docs/changelog)
+[Install](#install) · [Resources](resources/README.md) · [Watch the intro](https://youtu.be/3Dt_zLCfJ30) · [Documentation](https://saggar.marginalutility.dev/docs) · [Updates](https://saggar.marginalutility.dev/docs/changelog)
 
 ![Saggar organizing sessions across several projects](https://saggar.marginalutility.dev/screenshots/window.png)
 
@@ -69,9 +69,10 @@ This repository is Saggar's public home. Use it to:
 - [Report a bug](https://github.com/mcclowes/saggar/issues/new?template=bug.yml)
 - [Suggest a feature](https://github.com/mcclowes/saggar/issues/new?template=feature.yml)
 - [Ask a question or discuss an idea](https://github.com/mcclowes/saggar/discussions)
+- [Share a skill, prompt, tool, or recipe](resources/README.md) in the community resources list
 
 Before reporting a problem, check the [troubleshooting guide](https://saggar.marginalutility.dev/docs/help/troubleshooting). Please report security vulnerabilities privately, as described in [SECURITY.md](SECURITY.md).
 
 ## About this repository
 
-Saggar is proprietary software, and its application source is private. This repository hosts the public issue tracker and discussions. It will also host the website and product documentation once those sources move here.
+Saggar is proprietary software, and its application source is private. This repository hosts the public issue tracker, discussions, and the community [resources list](resources/README.md). It will also host the website and product documentation once those sources move here.
