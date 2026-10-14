@@ -127,7 +127,7 @@ export function describeLink(link) {
 export function hiddenPrompt(link, markdown) {
   const url = new URL(link);
   if (!url.pathname.endsWith("/prompt")) return false;
-  const prompt = decodeURIComponent(url.search.match(/[?&]prompt=([^&]*)/)?.[1] ?? "");
+  const prompt = url.searchParams.get("prompt") ?? "";
   return !markdown.includes(prompt);
 }
 

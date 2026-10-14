@@ -221,3 +221,44 @@ test("flags a prompt link whose prompt isn't shown on the page", () => {
   assert.equal(hiddenPrompt(link, "```text\nDescribe this repo.\n```"), true);
   assert.equal(hiddenPrompt(buildLink("navigate", {}), ""), false);
 });
+
+test("encoded prompt parameter names still require the exact decoded prompt on the page", () => {
+  const prompt = "Review %2F and a+b=c.";
+  const canonical = buildLink("prompt", { prompt, provider: "claude", model: "opus" });
+  for (const key of ["%70rompt", "p%72ompt", "%70%72%6F%6D%70%74"]) {
+    const encoded = canonical.replace("?prompt=", `?${key}=`);
+    for (const link of [encoded, encoded.replace(ORIGIN, "saggar://open/v1")]) {
+      assert.deepEqual(validateLink(link), []);
+      assert.equal(hiddenPrompt(link, "The linked instruction is not shown here."), true);
+      assert.equal(hiddenPrompt(link, `\`\`\`text\n${prompt}\n\`\`\``), false);
+      assert.equal(hiddenPrompt(link, "Review / and a+b=c."), true);
+    }
+  }
+});
+
+test("the resource CLI rejects hidden encoded-key prompts and accepts exact visible text", t => {
+  const prompt = "Review %2F and a+b=c.";
+  const visible = buildLink("prompt", { prompt, provider: "claude", model: "opus" })
+    .replace("?prompt=", "?%70rompt=");
+  const hidden = buildLink("prompt", { prompt: "Hidden instruction", provider: "claude", model: "opus" })
+    .replace("?prompt=", "?p%72ompt=");
+  const valid = buildLink("navigate", { pane: "cli" });
+  const { file, result } = checkFile(t, [
+    hidden,
+    hidden.replace(ORIGIN, "saggar://open/v1"),
+    "```text", prompt, "```",
+    visible,
+    visible.replace(ORIGIN, "saggar://open/v1"),
+    valid,
+  ].join("\n"));
+  assert.equal(result.status, 1);
+  assert.equal((result.stderr.match(/runs a prompt that isn't shown/g) ?? []).length, 2);
+  assert.ok(result.stderr.includes(`${file}:1`));
+  assert.ok(result.stderr.includes(`${file}:2`));
+  assert.ok(result.stdout.includes(`${file}:6`));
+  assert.ok(result.stdout.includes(`${file}:7`));
+  assert.ok(result.stdout.includes(`${file}:8`));
+  assert.ok(result.stdout.includes(`prompt=${JSON.stringify(prompt)}`));
+  assert.match(result.stdout, /5 Saggar links checked, 2 invalid\./);
+  assert.doesNotMatch(result.stderr, /Error:|at file:/);
+});
