@@ -98,6 +98,67 @@ test("refuses to build an invalid link", () => {
   assert.throws(() => buildLink("delete-everything", {}), /action/);
 });
 
+test("inherited property names are not supported actions", () => {
+  for (const action of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+    for (const origin of [ORIGIN, "saggar://open/v1"]) {
+      assert.deepEqual(validateLink(`${origin}/${action}`), [`names an unknown action: ${action}`]);
+    }
+    assert.throws(() => buildLink(action, {}), /Unknown action:/);
+  }
+});
+
+test("inherited property names are not supported parameters for any action", () => {
+  const actions = [
+    ["navigate", {}],
+    ["settings", { terminalFontSize: "14" }],
+    ["session", { name: "Test", command: "echo" }],
+    ["prompt", { prompt: "Read", provider: "claude", model: "opus" }],
+    ["skill", { id: "saggar-cli", provider: "claude" }],
+  ];
+  for (const [action, parameters] of actions) {
+    const valid = buildLink(action, parameters);
+    for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      const link = `${valid}${valid.includes("?") ? "&" : "?"}${key}=value`;
+      assert.deepEqual(validateLink(link), [`${action} doesn't take a ${key} parameter`]);
+      assert.throws(() => buildLink(action, { ...parameters, [key]: "value" }), /doesn't take a/);
+    }
+  }
+});
+
+test("the CLI rejects inherited names as actions and retains unsupported flags for validation", () => {
+  const script = fileURLToPath(new URL("./saggar-link.mjs", import.meta.url));
+  for (const key of ["__proto__", "constructor", "toString", "hasOwnProperty"]) {
+    for (const args of [["navigate", `--${key}`, "value"], [key]]) {
+      const result = spawnSync(process.execPath, [script, ...args], { encoding: "utf8", timeout: 5000 });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 2, result.stdout + result.stderr);
+      assert.equal(result.stdout, "");
+      assert.ok(result.stderr.includes(key));
+    }
+  }
+});
+
+test("the CLI still builds a documented action from collected flags", () => {
+  const script = fileURLToPath(new URL("./saggar-link.mjs", import.meta.url));
+  const result = spawnSync(process.execPath, [script, "session", "--name", "Test", "--command", "echo safe"], {
+    encoding: "utf8", timeout: 5000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, `${buildLink("session", { name: "Test", command: "echo safe" })}\n`);
+  assert.equal(result.stderr, "");
+});
+
+test("the resource CLI rejects inherited names and continues to a valid link", t => {
+  const valid = buildLink("navigate", { pane: "cli" });
+  const { file, result } = checkFile(t, `${ORIGIN}/constructor\n${ORIGIN}/navigate?constructor=value\n${valid}\n`);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /names an unknown action: constructor/);
+  assert.match(result.stderr, /navigate doesn't take a constructor parameter/);
+  assert.ok(result.stdout.includes(`${file}:3`));
+  assert.match(result.stdout, /3 Saggar links checked, 2 invalid\./);
+});
+
 test("accepts every documented action", () => {
   for (const link of [
     `${ORIGIN}/navigate`,

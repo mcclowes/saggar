@@ -54,8 +54,8 @@ export function validateLink(link) {
   const [, open, version, action, ...rest] = (isFallback ? `/${url.host}${url.pathname}` : url.pathname).split("/");
   if (open !== "open") return ["isn't an /open link"];
   if (version !== "v1") return [`uses unsupported version ${version}`];
+  if (!Object.hasOwn(ACTIONS, action) || rest.length > 0) return [`names an unknown action: ${action}`];
   const fields = ACTIONS[action];
-  if (!fields || rest.length > 0) return [`names an unknown action: ${action}`];
 
   if (bytes(link) > MAX_URL_BYTES) errors.push(`is over ${MAX_URL_BYTES} bytes`);
   if (url.search.includes("+")) errors.push("contains +, which the Mac reads literally; encode spaces as %20");
@@ -77,11 +77,11 @@ export function validateLink(link) {
     if (seen.has(key)) errors.push(`repeats the ${key} parameter`);
     seen.add(key);
     if (key === "source") continue;
-    const field = fields[key];
-    if (!field) {
+    if (!Object.hasOwn(fields, key)) {
       errors.push(`${action} doesn't take a ${key} parameter`);
       continue;
     }
+    const field = fields[key];
     if (value === "") errors.push(`${key} is empty`);
     if (bytes(value) > field.maxBytes) errors.push(`${key} is over ${field.maxBytes} bytes`);
     if (field.oneOf && !field.oneOf.includes(value)) errors.push(`${key} must be one of: ${field.oneOf.join(", ")}`);
@@ -97,7 +97,7 @@ export function validateLink(link) {
 }
 
 export function buildLink(action, parameters) {
-  if (!ACTIONS[action]) throw new Error(`Unknown action: ${action}. Use one of: ${Object.keys(ACTIONS).join(", ")}`);
+  if (!Object.hasOwn(ACTIONS, action)) throw new Error(`Unknown action: ${action}. Use one of: ${Object.keys(ACTIONS).join(", ")}`);
   const query = Object.entries(parameters)
     .map(([key, value]) => `${encode(key)}=${encode(String(value))}`)
     .join("&");
@@ -160,7 +160,7 @@ function check(paths) {
 }
 
 function parseFlags(args) {
-  const parameters = {};
+  const parameters = Object.create(null);
   for (let i = 0; i < args.length; i += 2) {
     const flag = args[i];
     if (!flag.startsWith("--") || args[i + 1] === undefined) {
