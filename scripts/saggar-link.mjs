@@ -62,9 +62,18 @@ export function validateLink(link) {
 
   const seen = new Set();
   for (const pair of url.search.slice(1).split("&").filter(Boolean)) {
-    const [rawKey, rawValue = ""] = pair.split("=");
-    const key = decodeURIComponent(rawKey);
-    const value = decodeURIComponent(rawValue);
+    const equals = pair.indexOf("=");
+    const rawKey = equals === -1 ? pair : pair.slice(0, equals);
+    const rawValue = equals === -1 ? "" : pair.slice(equals + 1);
+    let key;
+    let value;
+    try {
+      key = decodeURIComponent(rawKey);
+      value = decodeURIComponent(rawValue);
+    } catch {
+      errors.push("contains invalid percent encoding");
+      continue;
+    }
     if (seen.has(key)) errors.push(`repeats the ${key} parameter`);
     seen.add(key);
     if (key === "source") continue;
@@ -110,7 +119,7 @@ export function extractLinks(markdown) {
 export function describeLink(link) {
   const url = new URL(link);
   const action = url.pathname.split("/").pop();
-  const parameters = [...url.searchParams].map(([key, value]) => `${key}=${JSON.stringify(decodeURIComponent(value.replaceAll("+", "%2B")))}`);
+  const parameters = [...url.searchParams].map(([key, value]) => `${key}=${JSON.stringify(value)}`);
   return `${action} ${parameters.join(" ")}`.trim();
 }
 

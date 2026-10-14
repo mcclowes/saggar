@@ -1,8 +1,78 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildLink, extractLinks, hiddenPrompt, validateLink } from "./saggar-link.mjs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { buildLink, describeLink, extractLinks, hiddenPrompt, validateLink } from "./saggar-link.mjs";
 
 const ORIGIN = "https://saggar.marginalutility.dev/open/v1";
+
+function checkFile(t, markdown) {
+  const root = mkdtempSync(join(tmpdir(), "saggar-links-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const file = join(root, "links with spaces.md");
+  writeFileSync(file, markdown);
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL("./saggar-link.mjs", import.meta.url)), "check", file], {
+    cwd: root, encoding: "utf8", timeout: 5000,
+  });
+  assert.equal(result.error, undefined);
+  return { file, result };
+}
+
+test("describes literal percent signs and encoded-looking text without decoding twice", () => {
+  for (const command of ["printf 100%", "echo %2F", "echo a+b=c"]) {
+    const link = buildLink("session", { name: "Literal", command });
+    assert.deepEqual(validateLink(link), []);
+    assert.equal(describeLink(link), `session name="Literal" command=${JSON.stringify(command)}`);
+  }
+});
+
+test("malformed query encoding is reported as an invalid link", () => {
+  for (const query of ["name=%&command=echo", "name=x&command=%GG", "name=x&command=%C3%28", "na%me=x&command=echo"]) {
+    const errors = validateLink(`${ORIGIN}/session?${query}`);
+    assert.ok(errors.some(error => /percent encoding/.test(error)), query);
+  }
+});
+
+test("embedded equals signs remain part of the validated query value", () => {
+  const valid = `${ORIGIN}/session?name=Literal&command=echo=a=b`;
+  assert.deepEqual(validateLink(valid), []);
+  assert.equal(describeLink(valid), 'session name="Literal" command="echo=a=b"');
+  const tooLong = `${ORIGIN}/session?name=Literal&command=echo=${"a".repeat(1000)}`;
+  assert.ok(validateLink(tooLong).some(error => /command is over 1000 bytes/.test(error)));
+});
+
+test("the CLI accurately describes valid links containing percent and equals characters", t => {
+  const commands = ["printf 100%", "echo %2F", "echo a+b=c"];
+  const markdown = commands.map(command => buildLink("session", { name: "Literal", command })).join("\n");
+  const { result } = checkFile(t, markdown);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  for (const command of commands) assert.ok(result.stdout.includes(`command=${JSON.stringify(command)}`));
+  assert.match(result.stdout, /3 Saggar links checked, 0 invalid\./);
+});
+
+test("the CLI reports malformed encoding and continues checking subsequent links", t => {
+  const valid = buildLink("session", { name: "Literal", command: "printf 100%" });
+  const { file, result } = checkFile(t, `${ORIGIN}/session?name=Bad&command=%GG\n${valid}\n`);
+  assert.equal(result.status, 1);
+  assert.ok(result.stderr.includes(`${file}:1`));
+  assert.match(result.stderr, /invalid percent encoding/);
+  assert.doesNotMatch(result.stderr, /URIError|at validateLink/);
+  assert.ok(result.stdout.includes(`${file}:2`));
+  assert.match(result.stdout, /command="printf 100%"/);
+  assert.match(result.stdout, /2 Saggar links checked, 1 invalid\./);
+});
+
+test("percent characters in prompts keep the exact-text visibility check", () => {
+  const prompt = "Explain 100% and the literal %2F.";
+  const link = buildLink("prompt", { prompt, provider: "claude", model: "opus" });
+  assert.deepEqual(validateLink(link), []);
+  assert.equal(hiddenPrompt(link, prompt), false);
+  assert.equal(hiddenPrompt(link, "Explain 100% and the literal /."), true);
+});
 
 test("builds a session link", () => {
   assert.equal(
