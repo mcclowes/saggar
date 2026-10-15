@@ -1,0 +1,16 @@
+{
+  "related": [
+    {
+      "repo": "mcclowes/saggar-desktop",
+      "relation": "Public home and issue tracker for the Mac app built in saggar-desktop"
+    },
+    {
+      "repo": "mcclowes/saggar-web",
+      "relation": "Website, docs, relay, and accounts behind this public home live in saggar-web"
+    },
+    {
+      "repo": "mcclowes/saggar-mobile",
+      "relation": "The phone app routed from this public tracker lives in saggar-mobile"
+    }
+  ]
+}

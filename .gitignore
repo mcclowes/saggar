@@ -1,0 +1,4 @@
+.kiln/**/*.local.*
+.saggar/**/*.local.*
+.saggar/scratchpad.md
+.saggar/jobs/

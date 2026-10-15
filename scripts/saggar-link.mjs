@@ -54,25 +54,34 @@ export function validateLink(link) {
   const [, open, version, action, ...rest] = (isFallback ? `/${url.host}${url.pathname}` : url.pathname).split("/");
   if (open !== "open") return ["isn't an /open link"];
   if (version !== "v1") return [`uses unsupported version ${version}`];
+  if (!Object.hasOwn(ACTIONS, action) || rest.length > 0) return [`names an unknown action: ${action}`];
   const fields = ACTIONS[action];
-  if (!fields || rest.length > 0) return [`names an unknown action: ${action}`];
 
   if (bytes(link) > MAX_URL_BYTES) errors.push(`is over ${MAX_URL_BYTES} bytes`);
   if (url.search.includes("+")) errors.push("contains +, which the Mac reads literally; encode spaces as %20");
 
   const seen = new Set();
   for (const pair of url.search.slice(1).split("&").filter(Boolean)) {
-    const [rawKey, rawValue = ""] = pair.split("=");
-    const key = decodeURIComponent(rawKey);
-    const value = decodeURIComponent(rawValue);
+    const equals = pair.indexOf("=");
+    const rawKey = equals === -1 ? pair : pair.slice(0, equals);
+    const rawValue = equals === -1 ? "" : pair.slice(equals + 1);
+    let key;
+    let value;
+    try {
+      key = decodeURIComponent(rawKey);
+      value = decodeURIComponent(rawValue);
+    } catch {
+      errors.push("contains invalid percent encoding");
+      continue;
+    }
     if (seen.has(key)) errors.push(`repeats the ${key} parameter`);
     seen.add(key);
     if (key === "source") continue;
-    const field = fields[key];
-    if (!field) {
+    if (!Object.hasOwn(fields, key)) {
       errors.push(`${action} doesn't take a ${key} parameter`);
       continue;
     }
+    const field = fields[key];
     if (value === "") errors.push(`${key} is empty`);
     if (bytes(value) > field.maxBytes) errors.push(`${key} is over ${field.maxBytes} bytes`);
     if (field.oneOf && !field.oneOf.includes(value)) errors.push(`${key} must be one of: ${field.oneOf.join(", ")}`);
@@ -88,7 +97,7 @@ export function validateLink(link) {
 }
 
 export function buildLink(action, parameters) {
-  if (!ACTIONS[action]) throw new Error(`Unknown action: ${action}. Use one of: ${Object.keys(ACTIONS).join(", ")}`);
+  if (!Object.hasOwn(ACTIONS, action)) throw new Error(`Unknown action: ${action}. Use one of: ${Object.keys(ACTIONS).join(", ")}`);
   const query = Object.entries(parameters)
     .map(([key, value]) => `${encode(key)}=${encode(String(value))}`)
     .join("&");
@@ -110,7 +119,7 @@ export function extractLinks(markdown) {
 export function describeLink(link) {
   const url = new URL(link);
   const action = url.pathname.split("/").pop();
-  const parameters = [...url.searchParams].map(([key, value]) => `${key}=${JSON.stringify(decodeURIComponent(value.replaceAll("+", "%2B")))}`);
+  const parameters = [...url.searchParams].map(([key, value]) => `${key}=${JSON.stringify(value)}`);
   return `${action} ${parameters.join(" ")}`.trim();
 }
 
@@ -118,7 +127,7 @@ export function describeLink(link) {
 export function hiddenPrompt(link, markdown) {
   const url = new URL(link);
   if (!url.pathname.endsWith("/prompt")) return false;
-  const prompt = decodeURIComponent(url.search.match(/[?&]prompt=([^&]*)/)?.[1] ?? "");
+  const prompt = url.searchParams.get("prompt") ?? "";
   return !markdown.includes(prompt);
 }
 
@@ -151,7 +160,7 @@ function check(paths) {
 }
 
 function parseFlags(args) {
-  const parameters = {};
+  const parameters = Object.create(null);
   for (let i = 0; i < args.length; i += 2) {
     const flag = args[i];
     if (!flag.startsWith("--") || args[i + 1] === undefined) {

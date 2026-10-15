@@ -36,7 +36,7 @@ Quick runs and persistent monitors keep tests, development servers, and other lo
 
 ## Supported coding agents
 
-Saggar recognizes Codex, Claude Code, Antigravity, Pi, and OpenCode. It detects their status and waiting prompts, with optional hooks where the agent CLI supports them. Any ordinary shell command still runs as a terminal session.
+Saggar recognizes Codex, Claude Code, Antigravity, Pi, OpenCode, and GitHub Copilot CLI. It detects their status and waiting prompts, with optional hooks where the agent CLI supports them. Any ordinary shell command still runs as a terminal session.
 
 The bundled `saggar` CLI and optional agent skill let agents open projects, run commands, report status, and raise your attention themselves.
 
@@ -44,7 +44,7 @@ The bundled `saggar` CLI and optional agent skill let agents open projects, run 
 
 ## Step away without losing control
 
-Pair the optional [Saggar Companion](https://saggar.marginalutility.dev/remote) to inspect a session, answer its prompt, interrupt a runaway command, or type into it from your phone.
+Pair the optional [Saggar phone app](https://saggar.marginalutility.dev/docs/remote-control) to inspect a session, answer its prompt, interrupt a runaway command, or type into it from your phone.
 
 Remote control is off by default and requires a Marginal Utility account. Pairing needs both a matching account and confirmation at the Mac. The Mac opens no inbound port; it connects out to Saggar's relay, and terminal traffic is encrypted end to end.
 

@@ -1,8 +1,78 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildLink, extractLinks, hiddenPrompt, validateLink } from "./saggar-link.mjs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { buildLink, describeLink, extractLinks, hiddenPrompt, validateLink } from "./saggar-link.mjs";
 
 const ORIGIN = "https://saggar.marginalutility.dev/open/v1";
+
+function checkFile(t, markdown) {
+  const root = mkdtempSync(join(tmpdir(), "saggar-links-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const file = join(root, "links with spaces.md");
+  writeFileSync(file, markdown);
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL("./saggar-link.mjs", import.meta.url)), "check", file], {
+    cwd: root, encoding: "utf8", timeout: 5000,
+  });
+  assert.equal(result.error, undefined);
+  return { file, result };
+}
+
+test("describes literal percent signs and encoded-looking text without decoding twice", () => {
+  for (const command of ["printf 100%", "echo %2F", "echo a+b=c"]) {
+    const link = buildLink("session", { name: "Literal", command });
+    assert.deepEqual(validateLink(link), []);
+    assert.equal(describeLink(link), `session name="Literal" command=${JSON.stringify(command)}`);
+  }
+});
+
+test("malformed query encoding is reported as an invalid link", () => {
+  for (const query of ["name=%&command=echo", "name=x&command=%GG", "name=x&command=%C3%28", "na%me=x&command=echo"]) {
+    const errors = validateLink(`${ORIGIN}/session?${query}`);
+    assert.ok(errors.some(error => /percent encoding/.test(error)), query);
+  }
+});
+
+test("embedded equals signs remain part of the validated query value", () => {
+  const valid = `${ORIGIN}/session?name=Literal&command=echo=a=b`;
+  assert.deepEqual(validateLink(valid), []);
+  assert.equal(describeLink(valid), 'session name="Literal" command="echo=a=b"');
+  const tooLong = `${ORIGIN}/session?name=Literal&command=echo=${"a".repeat(1000)}`;
+  assert.ok(validateLink(tooLong).some(error => /command is over 1000 bytes/.test(error)));
+});
+
+test("the CLI accurately describes valid links containing percent and equals characters", t => {
+  const commands = ["printf 100%", "echo %2F", "echo a+b=c"];
+  const markdown = commands.map(command => buildLink("session", { name: "Literal", command })).join("\n");
+  const { result } = checkFile(t, markdown);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  for (const command of commands) assert.ok(result.stdout.includes(`command=${JSON.stringify(command)}`));
+  assert.match(result.stdout, /3 Saggar links checked, 0 invalid\./);
+});
+
+test("the CLI reports malformed encoding and continues checking subsequent links", t => {
+  const valid = buildLink("session", { name: "Literal", command: "printf 100%" });
+  const { file, result } = checkFile(t, `${ORIGIN}/session?name=Bad&command=%GG\n${valid}\n`);
+  assert.equal(result.status, 1);
+  assert.ok(result.stderr.includes(`${file}:1`));
+  assert.match(result.stderr, /invalid percent encoding/);
+  assert.doesNotMatch(result.stderr, /URIError|at validateLink/);
+  assert.ok(result.stdout.includes(`${file}:2`));
+  assert.match(result.stdout, /command="printf 100%"/);
+  assert.match(result.stdout, /2 Saggar links checked, 1 invalid\./);
+});
+
+test("percent characters in prompts keep the exact-text visibility check", () => {
+  const prompt = "Explain 100% and the literal %2F.";
+  const link = buildLink("prompt", { prompt, provider: "claude", model: "opus" });
+  assert.deepEqual(validateLink(link), []);
+  assert.equal(hiddenPrompt(link, prompt), false);
+  assert.equal(hiddenPrompt(link, "Explain 100% and the literal /."), true);
+});
 
 test("builds a session link", () => {
   assert.equal(
@@ -26,6 +96,67 @@ test("encodes characters that would break a Markdown link target", () => {
 test("refuses to build an invalid link", () => {
   assert.throws(() => buildLink("session", { name: "No command" }), /command/);
   assert.throws(() => buildLink("delete-everything", {}), /action/);
+});
+
+test("inherited property names are not supported actions", () => {
+  for (const action of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+    for (const origin of [ORIGIN, "saggar://open/v1"]) {
+      assert.deepEqual(validateLink(`${origin}/${action}`), [`names an unknown action: ${action}`]);
+    }
+    assert.throws(() => buildLink(action, {}), /Unknown action:/);
+  }
+});
+
+test("inherited property names are not supported parameters for any action", () => {
+  const actions = [
+    ["navigate", {}],
+    ["settings", { terminalFontSize: "14" }],
+    ["session", { name: "Test", command: "echo" }],
+    ["prompt", { prompt: "Read", provider: "claude", model: "opus" }],
+    ["skill", { id: "saggar-cli", provider: "claude" }],
+  ];
+  for (const [action, parameters] of actions) {
+    const valid = buildLink(action, parameters);
+    for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      const link = `${valid}${valid.includes("?") ? "&" : "?"}${key}=value`;
+      assert.deepEqual(validateLink(link), [`${action} doesn't take a ${key} parameter`]);
+      assert.throws(() => buildLink(action, { ...parameters, [key]: "value" }), /doesn't take a/);
+    }
+  }
+});
+
+test("the CLI rejects inherited names as actions and retains unsupported flags for validation", () => {
+  const script = fileURLToPath(new URL("./saggar-link.mjs", import.meta.url));
+  for (const key of ["__proto__", "constructor", "toString", "hasOwnProperty"]) {
+    for (const args of [["navigate", `--${key}`, "value"], [key]]) {
+      const result = spawnSync(process.execPath, [script, ...args], { encoding: "utf8", timeout: 5000 });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 2, result.stdout + result.stderr);
+      assert.equal(result.stdout, "");
+      assert.ok(result.stderr.includes(key));
+    }
+  }
+});
+
+test("the CLI still builds a documented action from collected flags", () => {
+  const script = fileURLToPath(new URL("./saggar-link.mjs", import.meta.url));
+  const result = spawnSync(process.execPath, [script, "session", "--name", "Test", "--command", "echo safe"], {
+    encoding: "utf8", timeout: 5000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, `${buildLink("session", { name: "Test", command: "echo safe" })}\n`);
+  assert.equal(result.stderr, "");
+});
+
+test("the resource CLI rejects inherited names and continues to a valid link", t => {
+  const valid = buildLink("navigate", { pane: "cli" });
+  const { file, result } = checkFile(t, `${ORIGIN}/constructor\n${ORIGIN}/navigate?constructor=value\n${valid}\n`);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /names an unknown action: constructor/);
+  assert.match(result.stderr, /navigate doesn't take a constructor parameter/);
+  assert.ok(result.stdout.includes(`${file}:3`));
+  assert.match(result.stdout, /3 Saggar links checked, 2 invalid\./);
 });
 
 test("accepts every documented action", () => {
@@ -89,4 +220,45 @@ test("flags a prompt link whose prompt isn't shown on the page", () => {
   assert.equal(hiddenPrompt(link, "```text\nDescribe this project.\n```"), false);
   assert.equal(hiddenPrompt(link, "```text\nDescribe this repo.\n```"), true);
   assert.equal(hiddenPrompt(buildLink("navigate", {}), ""), false);
+});
+
+test("encoded prompt parameter names still require the exact decoded prompt on the page", () => {
+  const prompt = "Review %2F and a+b=c.";
+  const canonical = buildLink("prompt", { prompt, provider: "claude", model: "opus" });
+  for (const key of ["%70rompt", "p%72ompt", "%70%72%6F%6D%70%74"]) {
+    const encoded = canonical.replace("?prompt=", `?${key}=`);
+    for (const link of [encoded, encoded.replace(ORIGIN, "saggar://open/v1")]) {
+      assert.deepEqual(validateLink(link), []);
+      assert.equal(hiddenPrompt(link, "The linked instruction is not shown here."), true);
+      assert.equal(hiddenPrompt(link, `\`\`\`text\n${prompt}\n\`\`\``), false);
+      assert.equal(hiddenPrompt(link, "Review / and a+b=c."), true);
+    }
+  }
+});
+
+test("the resource CLI rejects hidden encoded-key prompts and accepts exact visible text", t => {
+  const prompt = "Review %2F and a+b=c.";
+  const visible = buildLink("prompt", { prompt, provider: "claude", model: "opus" })
+    .replace("?prompt=", "?%70rompt=");
+  const hidden = buildLink("prompt", { prompt: "Hidden instruction", provider: "claude", model: "opus" })
+    .replace("?prompt=", "?p%72ompt=");
+  const valid = buildLink("navigate", { pane: "cli" });
+  const { file, result } = checkFile(t, [
+    hidden,
+    hidden.replace(ORIGIN, "saggar://open/v1"),
+    "```text", prompt, "```",
+    visible,
+    visible.replace(ORIGIN, "saggar://open/v1"),
+    valid,
+  ].join("\n"));
+  assert.equal(result.status, 1);
+  assert.equal((result.stderr.match(/runs a prompt that isn't shown/g) ?? []).length, 2);
+  assert.ok(result.stderr.includes(`${file}:1`));
+  assert.ok(result.stderr.includes(`${file}:2`));
+  assert.ok(result.stdout.includes(`${file}:6`));
+  assert.ok(result.stdout.includes(`${file}:7`));
+  assert.ok(result.stdout.includes(`${file}:8`));
+  assert.ok(result.stdout.includes(`prompt=${JSON.stringify(prompt)}`));
+  assert.match(result.stdout, /5 Saggar links checked, 2 invalid\./);
+  assert.doesNotMatch(result.stderr, /Error:|at file:/);
 });
