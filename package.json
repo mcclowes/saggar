@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "node --test scripts/saggar-link.test.mjs",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-include='scripts/saggar-link.mjs' --test-coverage-lines=97 --test-coverage-branches=92 --test-coverage-functions=95 --test scripts/saggar-link.test.mjs",
     "link": "node scripts/saggar-link.mjs",
     "links:check": "node scripts/saggar-link.mjs check resources"
   }
