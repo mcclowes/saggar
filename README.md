@@ -76,3 +76,12 @@ Before reporting a problem, check the [troubleshooting guide](https://saggar.mar
 ## About this repository
 
 Saggar is proprietary software, and its application source is private. This repository hosts the public issue tracker, discussions, and the community [resources list](resources/README.md). It will also host the website and product documentation once those sources move here.
+
+## Coverage gate
+
+Run `npm run test:coverage` with Node.js 22.8 or later. It fails below 97% lines, 92% branches, or
+95% functions for the resource-link helper. These floors are rounded down from the measured suite on
+October 29, 2026. Raise them as coverage improves.
+
+Node's built-in coverage counts loaded modules. Tests and test harnesses are excluded; files never
+loaded by the suite aren't measured. Existing CI runs this gate.
